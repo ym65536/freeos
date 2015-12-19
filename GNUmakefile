@@ -49,6 +49,7 @@ endif
 
 # try to infer the correct QEMU
 ifndef QEMU
+ifdef USEBASEQEMU
 QEMU := $(shell if which qemu > /dev/null; \
 	then echo qemu; exit; \
         elif which qemu-system-i386 > /dev/null; \
@@ -61,6 +62,9 @@ QEMU := $(shell if which qemu > /dev/null; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
 	echo "*** or have you tried setting the QEMU variable in conf/env.mk?" 1>&2; \
 	echo "***" 1>&2; exit 1)
+else
+QEMU := /usr/local/qemu/bin/qemu-system-i386
+endif
 endif
 
 # try to generate a unique GDB port
