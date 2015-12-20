@@ -68,7 +68,10 @@ endif
 endif
 
 # try to generate a unique GDB port
-GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+#GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+GDBPORT	:= 1234
+GDBTYPE := -gstabs
+#GDBTYPE := -g
 
 CC	:= $(GCCPREFIX)gcc -pipe
 AS	:= $(GCCPREFIX)as
@@ -87,10 +90,9 @@ PERL	:= perl
 # Compiler flags
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
-CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD
+CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O0 -fno-builtin -I$(TOP) -MD
 CFLAGS += -fno-omit-frame-pointer
-#CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32 -g
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -m32 -g
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -m32 $(GDBTYPE)
 # -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
 # mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
 CFLAGS += -fno-tree-ch
