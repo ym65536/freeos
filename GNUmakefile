@@ -49,6 +49,7 @@ endif
 
 # try to infer the correct QEMU
 ifndef QEMU
+ifdef USEBASEQEMU
 QEMU := $(shell if which qemu > /dev/null; \
 	then echo qemu; exit; \
         elif which qemu-system-i386 > /dev/null; \
@@ -61,10 +62,16 @@ QEMU := $(shell if which qemu > /dev/null; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
 	echo "*** or have you tried setting the QEMU variable in conf/env.mk?" 1>&2; \
 	echo "***" 1>&2; exit 1)
+else
+QEMU := /usr/local/qemu/bin/qemu-system-i386
+endif
 endif
 
 # try to generate a unique GDB port
-GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+#GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
+GDBPORT	:= 1234
+GDBTYPE := -gstabs
+#GDBTYPE := -g
 
 CC	:= $(GCCPREFIX)gcc -pipe
 AS	:= $(GCCPREFIX)as
@@ -85,7 +92,7 @@ PERL	:= perl
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
 CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD
 CFLAGS += -fno-omit-frame-pointer
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -m32 $(GDBTYPE)
 # -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
 # mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
 CFLAGS += -fno-tree-ch
