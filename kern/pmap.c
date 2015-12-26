@@ -161,6 +161,7 @@ mem_init(void)
 	check_page_alloc();
 	cprintf("so far, exercise 1 works well :)\n");
 	check_page();
+	cprintf("so far, exercise 4 works well :)\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -356,7 +357,21 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	int pd_idx = PDX(va);
+	int pte_idx = PTX(va);
+	if (!pgdir[pd_idx] & PTE_P) // if pde not exist
+	{
+		if (!create)
+			return NULL;
+		struct PageInfo* pg = page_alloc(ALLOC_ZERO);
+		if (!pg)
+			return NULL;
+		pg->pp_ref++;
+		pgdir[pd_idx] = page2pa(pg) | PTE_P | PTE_U | PTE_W;
+	}
+	pte_t *ptebase = KADDR(PTE_ADDR(pgdir[pd_idx]));
+
+	return ptebase + pte_idx;
 }
 
 //
@@ -374,6 +389,18 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	int i;
+	cprintf("VA %08x mapped to PA %08x, size:%08x\n", va, pa, size);
+	for (i = 0; i < size / PGSIZE; i++)
+	{
+		pte_t* pte = pgdir_walk(pgdir, (void* )va, 1); //create
+		if (!pte)
+			panic("boot_map_region panic: out of memory!\n");
+		*pte = pa | perm | PTE_P;
+		va += PGSIZE;
+		pa += PGSIZE;
+	}
+	cprintf("VA %08x mapped to PA %08x, size:%08x\n", va, pa, size);
 }
 
 //
@@ -405,6 +432,14 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t* pte = pgdir_walk(pgdir, va, 1);
+	if (!pte)
+		return -E_NO_MEM;
+	pp->pp_ref++;
+	if(*pte & PTE_P)
+		page_remove(pgdir, va);
+
+	*pte = page2pa(pp) | perm | PTE_P;
 	return 0;
 }
 
@@ -423,7 +458,14 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t* pte = pgdir_walk(pgdir, va, 0);
+	if (!pte || (*pte & PTE_P))
+		return NULL;
+	
+	if (pte_store)
+		*pte_store = pte;
+
+	return pa2page(PTE_ADDR(*pte));
 }
 
 //
@@ -445,6 +487,14 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t* pte;
+	struct PageInfo* pp = page_lookup(pgdir, va, &pte);
+	if (!pp || (*pte & PTE_P))
+		return;
+
+	page_decref(pp);
+	*pte = 0;
+	tlb_invalidate(pgdir, va);
 }
 
 //
