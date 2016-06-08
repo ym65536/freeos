@@ -98,7 +98,7 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-	cprintf("boot_alloc memory at [%08x, %08x + %08x]\n", nextfree, nextfree, ROUNDUP(n, PGSIZE));
+	cprintf("boot_alloc memory at line_addr [%08x, %08x + %08x]\n", nextfree, nextfree, ROUNDUP(n, PGSIZE));
     result = nextfree;
     nextfree += ROUNDUP(n, PGSIZE);
 
@@ -147,10 +147,10 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
-    pages = (struct PageInfo*)boot_alloc(npages * sizeof(struct PageInfo));
+    pages = (struct PageInfo* )boot_alloc(npages * sizeof(struct PageInfo));
 	memset(pages, 0, npages * sizeof(struct PageInfo));
-	cprintf("npages:%d, npages_basemem:%d, pages_addr:%08x\n", pages);
+	cprintf("npages:%d, npages_basemem:%d, pages_addr:%08x\n", npages, npages_basemem, pages);
+
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
