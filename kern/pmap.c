@@ -274,20 +274,23 @@ page_init(void)
 	size_t i;
 	pages[0].pp_ref = 1;
 	pages[0].pp_link = NULL;
-	for (i = 1; i < npages_basemem; i++)
+
+	uint32_t nextfree = (uint32_t)boot_alloc(0);
+	cprintf("NPAGES: %d NPAGES_BASE_MEM: %d\n", npages, npages_basemem);
+	cprintf("NEXTFREE: %08x IOPHY: %08x  EXT: %08x\n", nextfree - KERNBASE, IOPHYSMEM, EXTPHYSMEM);
+	for (i = 1; i < npages; i++) 
 	{
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
-	}
-	int addr = (int)ROUNDUP((char* )pages + sizeof(struct PageInfo) * npages - 0xf0000000, PGSIZE);
-	int npages_extend = (int)(addr / PGSIZE);
-	cprintf("extend page addr:%d\n", addr);
-	for (i = npages_extend; i < npages; i++)
-	{
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+		if ((i >= (IOPHYSMEM / PGSIZE)) && (i < ((nextfree - KERNBASE)/ PGSIZE))) 
+		{
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+		}
+		else 
+		{
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
 	}
 }
 
@@ -379,18 +382,21 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// Fill this function in
 	int pd_idx = PDX(va);
 	int pte_idx = PTX(va);
-	if (!pgdir[pd_idx] & PTE_P) // if pde not exist
+	if (pgdir[pd_idx] & PTE_P) // if pde exist
 	{
-		if (!create)
-			return NULL;
-		struct PageInfo* pg = page_alloc(ALLOC_ZERO);
-		if (!pg)
-			return NULL;
-		pg->pp_ref++;
-		pgdir[pd_idx] = page2pa(pg) | PTE_P | PTE_U | PTE_W;
+		pte_t *ptebase = KADDR(PTE_ADDR(pgdir[pd_idx]));
+		return ptebase + pte_idx; 
 	}
-	pte_t *ptebase = KADDR(PTE_ADDR(pgdir[pd_idx]));
+	// pde not exist
+	if (!create)
+		return NULL;
+	struct PageInfo* pg = page_alloc(ALLOC_ZERO);
+	if (!pg)
+		return NULL;
+	pg->pp_ref++;
+	pgdir[pd_idx] = page2pa(pg) | PTE_P | PTE_U | PTE_W;
 
+	pte_t *ptebase = KADDR(PTE_ADDR(pgdir[pd_idx]));
 	return ptebase + pte_idx;
 }
 
@@ -452,7 +458,6 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-	
 	
     pte_t *pte = pgdir_walk(pgdir, va, 0);
     physaddr_t ppa = page2pa(pp);
